@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  prefect-server:
+    image: prefecthq/prefect:3-python3.14-kubernetes
+    container_name: prefect-server
+    ports:
+      - "4200:4200"
+    environment:
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+      - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+    depends_on:
+      - postgres
+    volumes:
+      - prefect-data:/root/.prefect
+    command: prefect server start --host 0.0.0.0
+    networks:
+      - prefect-network
+
+  prefect-worker:
+    build: .
+    container_name: prefect-worker
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+    depends_on:
+      - prefect-server
+    volumes:
+      - ./flows:/app/flows
+      - ./deployments:/app/deployments
+      - ./config:/app/config
+      - ./utils:/app/utils
+    command: prefect worker start --pool default-agent-pool
+    networks:
+      - prefect-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: prefect-postgres
+    environment:
+      - POSTGRES_USER=prefect
+      - POSTGRES_PASSWORD=prefect
+      - POSTGRES_DB=prefect
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - prefect-network
+
+volumes:
+  prefect-data:
+  postgres-data:
+
+networks:
+  prefect-network:
+    driver: bridge

@@ -1,0 +1,25 @@
+# Prefect deployment configuration
+name: perfect-flow
+prefect-version: 3.0.0
+
+# Push step - builds and pushes Docker image
+push:
+  - prefect_docker.deployments.steps.build_docker_image:
+      requires: prefect-docker
+      image_name: perfect-flow
+      tag: latest
+      dockerfile: Dockerfile
+
+# Pull step - pulls Docker image in deployment environment
+pull:
+  - prefect_docker.deployments.steps.pull_docker_image:
+      requires: prefect-docker
+      image_name: "{{ build-image.image_name }}"
+      tag: "{{ build-image.tag }}"
+
+# Work pool configuration
+work_pool:
+  name: default-agent-pool
+  work_queue_name: default
+  job_variables:
+    image: "{{ build-image.image }}"
